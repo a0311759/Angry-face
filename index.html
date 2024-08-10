@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Button and Fire Bullets</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(70, 0, 0, 0.9), rgba(10, 0, 0, 0.9)); /* Even darker red gradient */
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fire-button {
+            position: absolute;
+            bottom: 60px;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #ff5733, #c70039); /* Gradient color for visibility */
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+
+        .control-buttons {
+            position: fixed;
+            bottom: 10px;
+            width: calc(100% - 200px);
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .control-button {
+            padding: 10px;
+        }
+
+        .bullet {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: green; /* Green color for bullets */
+            border: none;
+        }
+
+        .enemy {
+            position: absolute;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        #scoreboard {
+            position: fixed;
+            right: 10px;
+            top: 10px;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #timer {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #game-over-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-direction: column;
+        }
+
+        #game-over-page button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreboard" class="d-flex flex-column">
+        <div>Bullets: <span id="bullet-count">15</span></div>
+        <div>Score: <span id="score">0</span></div>
+    </div>
+    <div id="timer">Time Left: <span id="timer-count">5</span> seconds</div>
+    <div class="container">
+        <button id="fire-button" class="btn btn-primary fire-button">Fire</button>
+    </div>
+    <div class="control-buttons">
+        <button id="move-left" class="btn btn-secondary control-button">◀️</button>
+        <button id="move-right" class="btn btn-secondary control-button">▶️</button>
+    </div>
+
+    <!-- Game Over Page -->
+    <div id="game-over-page">
+        <div id="game-over-reason"></div>
+        <div id="game-over-score">Score: 0</div>
+        <button id="play-again" class="btn btn-primary">Play Again</button>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        
+    const fireButton = document.getElementById('fire-button');
+    const moveLeftButton = document.getElementById('move-left');
+    const moveRightButton = document.getElementById('move-right');
+    const bulletCountElem = document.getElementById('bullet-count');
+    const scoreElem = document.getElementById('score');
+    const timerCountElem = document.getElementById('timer-count');
+    const gameOverPage = document.getElementById('game-over-page');
+    const gameOverReasonElem = document.getElementById('game-over-reason');
+    const gameOverScoreElem = document.getElementById('game-over-score');
+    const playAgainButton = document.getElementById('play-again');
+
+    let position = 0; // Initial position of the fire button
+    let bulletCount = 15; // Initial number of bullets
+    let score = 0; // Initial score
+    let lastBulletTime = Date.now(); // Time of last bullet fired
+    let timerInterval; // Timer interval
+    let randomTime; // Random time for the countdown
+    let timeLeft; // Time left in seconds
+
+    const enemies = ['😡', '🤬', '😈', '👿', '👻', '💀', '👹', '👺', '🤡', '🎃'];
+    const enemyScores = {
+        '😡': 1,
+        '🤬': 1,
+        '👿': 1,
+        '💀': 2,
+        '👻': 2,
+        '👹': 2,
+        '👺': 2,
+        '🤡': 5,
+        '🎃': 2
+    };
+
+    function updateButtonPosition() {
+        const containerWidth = document.querySelector('.container').offsetWidth;
+        const buttonWidth = fireButton.offsetWidth;
+        position = Math.max(0, Math.min(containerWidth - buttonWidth, position));
+        fireButton.style.left = `${position}px`;
+    }
+
+    function moveButton(delta) {
+        position += delta;
+        updateButtonPosition(); // Ensure the button stays within bounds
+    }
+
+    function createBullet() {
+        if (bulletCount <= 0) {
+            endGame('No bullets left!'); // End game if no bullets
+            return;
+        }
+
+        const bullet = document.createElement('div');
+        bullet.className = 'bullet';
+        bullet.style.left = `${fireButton.offsetLeft + fireButton.offsetWidth / 2 - 5}px`;
+        bullet.style.bottom = `${60}px`; // Adjust based on fire button position
+        document.body.appendChild(bullet);
+
+        // Animate the bullet
+        let bulletInterval = setInterval(() => {
+            let bulletBottom = parseFloat(getComputedStyle(bullet).bottom);
+            if (bulletBottom >= window.innerHeight) {
+                clearInterval(bulletInterval);
+                bullet.remove();
+            } else {
+                bullet.style.bottom = `${bulletBottom + 10}px`; // Move bullet up
+                checkBulletCollision(bullet);
+            }
+        }, 20); // Adjust speed here
+
+        bulletCount--;
+        bulletCountElem.textContent = bulletCount;
+        lastBulletTime = Date.now(); // Update last bullet fired time
+        resetTimer(); // Reset timer on bullet fire
+    }
+
+    function checkBulletCollision(bullet) {
+        const bulletsRect = bullet.getBoundingClientRect();
+        document.querySelectorAll('.enemy').forEach(enemy => {
+            const enemyRect = enemy.getBoundingClientRect();
+            if (bulletsRect.left < enemyRect.right &&
+                bulletsRect.right > enemyRect.left &&
+                bulletsRect.bottom > enemyRect.top &&
+                bulletsRect.top < enemyRect.bottom) {
+                const enemyChar = enemy.textContent;
+                if (enemyScores[enemyChar] !== undefined) {
+                    score += enemyScores[enemyChar];
+                    scoreElem.textContent = score;
+
+                    if (enemyChar === '💀' || enemyChar === '👻' || enemyChar === '👹' || enemyChar === '👺' || enemyChar === '🎃') {
+                        bulletCount += 2;
+                        bulletCountElem.textContent = bulletCount;
+                    }
+                    enemy.remove();
+                }
+            }
+        });
+    }
+
+    function createEnemy() {
+        const enemy = document.createElement('div');
+        enemy.className = 'enemy';
+        enemy.textContent = enemies[Math.floor(Math.random() * enemies.length)];
+        enemy.style.left = `${Math.random() * (window.innerWidth - 30)}px`; // Random position in top half
+        enemy.style.top = `${Math.random() * (window.innerHeight / 2 - 30)}px`; // Random position in top half
+        document.body.appendChild(enemy);
+
+        // Remove enemy after some time and reappear
+        setTimeout(() => {
+            enemy.remove();
+        }, 3000); // Remove after 3 seconds
+
+        // Reappear after removal
+        setTimeout(() => {
+            createEnemy();
+        }, 3000); // Create new enemy after 3 seconds
+    }
+
+    function updateTimer() {
+        const timeElapsed = (Date.now() - lastBulletTime) / 1000; // Time elapsed in seconds
+        timeLeft = Math.max(0, randomTime - Math.floor(timeElapsed)); // Calculate time left
+        timerCountElem.textContent = timeLeft;
+
+        if (timeLeft === 0) {
+            endGame('Game Over: No bullets fired in ' + randomTime + ' seconds!'); // End game if timer runs out
+        }
+    }
+
+    function resetTimer() {
+        randomTime = Math.floor(Math.random() * (7 - 2 + 1)) + 2; // Random time between 2 and 7 seconds
+        timeLeft = randomTime;
+        timerCountElem.textContent = timeLeft;
+    }
+
+    function endGame(reason) {
+        clearInterval(timerInterval); // Stop the timer
+        gameOverPage.style.display = 'flex'; // Show game over page
+        gameOverReasonElem.textContent = reason;
+        gameOverScoreElem.textContent = `Score: ${score}`;
+        document.querySelector('.container').style.display = 'none'; // Hide game interface
+        document.querySelector('.control-buttons').style.display = 'none'; // Hide control buttons
+    }
+
+    function resetGame() {
+        bulletCount = 15;
+        score = 0;
+        lastBulletTime = Date.now();
+        bulletCountElem.textContent = bulletCount;
+        scoreElem.textContent = score;
+        resetTimer(); // Reset the timer with a new random value
+        document.querySelector('.container').style.display = 'flex'; // Show game interface
+        document.querySelector('.control-buttons').style.display = 'flex'; // Show control buttons
+        gameOverPage.style.display = 'none'; // Hide game over page
+        document.querySelectorAll('.enemy').forEach(enemy => enemy.remove());
+        for (let i = 0; i < 5; i++) {
+            createEnemy(); // Create initial set of enemies
+        }
+        clearInterval(timerInterval); // Clear previous timer
+        timerInterval = setInterval(updateTimer, 1000); // Restart timer
+    }
+
+    // Initialize position on page load
+    updateButtonPosition();
+
+    moveLeftButton.addEventListener('click', () => {
+        moveButton(-20); // Move left
+    });
+
+    moveRightButton.addEventListener('click', () => {
+        moveButton(20); // Move right
+    });
+
+    fireButton.addEventListener('click', () => {
+        createBullet(); // Launch bullet
+    });
+
+    // Create initial enemies
+    for (let i = 0; i < 5; i++) {
+        createEnemy(); // Create initial set of enemies
+    }
+
+    // Set random timer and start the timer interval
+    resetTimer(); // Initialize random timer value
+    timerInterval = setInterval(updateTimer, 1000); // Update timer every second
+
+    // Play again button event listener
+    playAgainButton.addEventListener('click', () => {
+        resetGame(); // Restart the game
+    });
+</script>
+
+
+
+</html>
