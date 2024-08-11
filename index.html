@@ -117,7 +117,7 @@
 </head>
 <body>
     <div id="scoreboard" class="d-flex flex-column">
-        <div>Bullets: <span id="bullet-count">15</span></div>
+        <div>Bullets: <span id="bullet-count">5</span></div>
         <div>Score: <span id="score">0</span></div>
     </div>
     <div id="timer">Time Left: <span id="timer-count">5</span> seconds</div>
@@ -140,8 +140,9 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script>
-        const fireButton = document.getElementById('fire-button');
+
+<script>
+const fireButton = document.getElementById('fire-button');
 const gun = document.getElementById('gun');
 const moveLeftButton = document.getElementById('move-left');
 const moveRightButton = document.getElementById('move-right');
@@ -173,6 +174,8 @@ const enemyScores = {
     '🤡': 5,
     '🎃': 2
 };
+
+const maxBullets = 5; // Maximum bullet count
 
 function updateGunPosition() {
     gun.style.left = `${gunPosition}px`;
@@ -233,8 +236,9 @@ function checkBulletCollision(bullet) {
                 score += enemyScores[enemyChar];
                 scoreElem.textContent = score;
 
+                // Only increase bullet count up to maxBullets
                 if (enemyChar === '💀' || enemyChar === '👻' || enemyChar === '👹' || enemyChar === '👺' || enemyChar === '🎃') {
-                    bulletCount += 2;
+                    bulletCount = Math.min(maxBullets, bulletCount + 2);
                     bulletCountElem.textContent = bulletCount;
                 }
                 enemy.remove();
@@ -333,9 +337,7 @@ timerInterval = setInterval(updateTimer, 1000); // Update timer every second
 playAgainButton.addEventListener('click', () => {
     resetGame(); // Restart the game
 });
-
-
-
 </script>
 
-</html>
+    </html>
+    
