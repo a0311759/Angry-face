@@ -161,7 +161,7 @@ let timerInterval; // Timer interval
 let randomTime; // Random time for the countdown
 let timeLeft; // Time left in seconds
 
-const enemies = ['😡', '🤬', '😈', '👿', '👻', '💀', '👹', '👺', '🤡', '🎃'];
+const enemies = ['😡', '🤬', '😈', '👿', '👻', '💀', '👹', '👺', '🤡', '🎃', '🙂', '😇'];
 const enemyScores = {
     '😡': 1,
     '🤬': 1,
@@ -223,6 +223,12 @@ function checkBulletCollision(bullet) {
             bulletsRect.bottom > enemyRect.top &&
             bulletsRect.top < enemyRect.bottom) {
             const enemyChar = enemy.textContent;
+
+            if (enemyChar === '🙂' || enemyChar === '😇') {
+                endGame('Game Over: You hit a friendly target!'); // End game if friendly target is hit
+                return;
+            }
+
             if (enemyScores[enemyChar] !== undefined) {
                 score += enemyScores[enemyChar];
                 scoreElem.textContent = score;
@@ -327,6 +333,7 @@ timerInterval = setInterval(updateTimer, 1000); // Update timer every second
 playAgainButton.addEventListener('click', () => {
     resetGame(); // Restart the game
 });
+
 
 
 </script>
